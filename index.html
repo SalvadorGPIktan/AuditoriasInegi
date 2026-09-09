@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SIIAPO | Seguimiento Regional de Auditorías</title>
+    <style>
+        :root {
+            --navy: #0c2d4b;
+            --navy2: #123b5d;
+            --cyan: #00d4cf;
+            --blue: #0b6d9a;
+            --ink: #102942;
+            --muted: #64748b;
+            --line: #d8e1e8;
+            --bg: #f4f7f9;
+            --card: #fff;
+            --green: #5fb441;
+            --yellow: #f5b700;
+            --red: #f43f5e;
+            --orange: #c94a0a
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: Segoe UI, Arial, sans-serif;
+            color: var(--ink);
+            background: var(--bg)
+        }
+
+        .topbar {
+            height: 68px;
+            background: var(--navy);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 2px solid #215477;
+            gap: 28px
+        }
+
+        .brand {
+            font-weight: 800;
+            font-size: 34px;
+            letter-spacing: 1px;
+            border-right: 2px solid #dce9f3;
+            padding-right: 28px
+        }
+
+        .title {
+            font-size: 24px;
+            letter-spacing: .4px;
+            flex: 1
+        }
+
+        .status {
+            font-size: 11px;
+            text-align: right
+        }
+
+        .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--yellow);
+            margin-right: 6px
+        }
+
+        .dot.ok {
+            background: #24d67a;
+            box-shadow: 0 0 10px #24d67a
+        }
+
+        .dot.bad {
+            background: #ff5b63
+        }
+
+        .hero {
+            background: linear-gradient(120deg, var(--navy), var(--navy2));
+            color: #fff;
+            padding: 18px 28px 22px;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 24px
+        }
+
+        .hero h1 {
+            font-size: 25px;
+            margin: 0 0 10px
+        }
+
+        .hero p {
+            color: var(--cyan);
+            font-size: 16px;
+            margin: 0;
+            max-width: 720px
+        }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr)
+        }
+
+        .kpi {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            gap: 8px;
+            align-items: center;
+            padding: 3px 14px;
+            border-left: 1px solid #d3e1ea
+        }
+
+        .kpi:first-child {
+            border-left: 0
+        }
+
+        .kpi .ico {
+            font-size: 26px;
+            color: var(--cyan)
+        }
+
+        .kpi strong {
+            font-size: 21px;
+            display: block
+        }
+
+        .kpi small {
+            font-size: 9px;
+            line-height: 1.2;
+            display: block
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: 1.4fr repeat(4, 1fr) auto auto;
+            gap: 9px;
+            padding: 13px 22px;
+            background: #fff;
+            border-bottom: 1px solid var(--line);
+            align-items: end
+        }
+
+        .filters label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #52677a;
+            display: block;
+            margin-bottom: 4px
+        }
+
+        .filters select,
+        .filters input {
+            width: 100%;
+            border: 1px solid #bccbd6;
+            border-radius: 8px;
+            padding: 9px;
+            background: #fff;
+            color: #18344b
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 8px;
+            background: var(--blue);
+            color: #fff;
+            padding: 10px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap
+        }
+
+        .btn:disabled {
+            opacity: .6
+        }
+
+        .btn.secondary {
+            background: #eaf2f7;
+            color: #0d4f72
+        }
+
+        .source-note {
+            background: #eaf3f7;
+            padding: 7px 22px;
+            font-size: 11px;
+            color: #3c6278
+        }
+
+        .quick {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            padding: 14px 10%;
+            background: #fff
+        }
+
+        .quick div {
+            background: #f1f2f4;
+            border-radius: 10px;
+            padding: 10px 14px;
+            text-align: center;
+            color: #183b59;
+            font-size: 14px;
+            border-bottom: 3px solid transparent
+        }
+
+        .quick div:hover {
+            border-color: #846cff
+        }
+
+        .main {
+            padding: 0 24px 14px;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 14px
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            padding: 16px 18px;
+            min-height: 270px;
+            overflow: hidden
+        }
+
+        .panel h2 {
+            text-align: center;
+            font-size: 15px;
+            margin: 0 0 14px;
+            color: #111
+        }
+
+        .bars {
+            display: grid;
+            gap: 12px
+        }
+
+        .barRow {
+            display: grid;
+            grid-template-columns: minmax(110px, 1fr) 2fr 42px;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px
+        }
+
+        .track {
+            height: 9px;
+            border-radius: 10px;
+            background: #edf2f5;
+            overflow: hidden
+        }
+
+        .fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, var(--blue), var(--cyan))
+        }
+
+        .value {
+            text-align: right;
+            font-weight: 800
+        }
+
+        .themeTable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px
+        }
+
+        .themeTable th {
+            text-align: left;
+            color: #555;
+            font-weight: 500;
+            padding: 0 6px 9px
+        }
+
+        .themeTable td {
+            padding: 7px 6px
+        }
+
+        .risk {
+            border-radius: 6px;
+            color: #fff;
+            padding: 4px 11px;
+            display: inline-block;
+            min-width: 62px;
+            text-align: center
+        }
+
+        .risk.alto {
+            background: #ff1515
+        }
+
+        .risk.medio {
+            background: #ffe600;
+            color: #111
+        }
+
+        .risk.bajo {
+            background: #78c94a
+        }
+
+        .alertList {
+            display: grid;
+            gap: 9px
+        }
+
+        .alert {
+            border: 1px solid #e0e4e7;
+            border-radius: 9px;
+            padding: 9px 10px;
+            font-size: 12px;
+            display: grid;
+            grid-template-columns: 24px 1fr;
+            gap: 7px
+        }
+
+        .alert b {
+            font-size: 13px
+        }
+
+        .aicon {
+            color: var(--orange);
+            font-size: 20px
+        }
+
+        .empty {
+            color: var(--muted);
+            font-size: 12px;
+            text-align: center;
+            padding: 28px 0
+        }
+
+        .lower {
+            padding: 0 24px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px
+        }
+
+        .box {
+            border-radius: 28px;
+            padding: 15px 20px;
+            min-height: 205px;
+            border: 1px solid #cad5dd
+        }
+
+        .blue {
+            background: #dcebf7
+        }
+
+        .green {
+            background: #daefd3
+        }
+
+        .orange {
+            background: #fae0d1
+        }
+
+        .box h3 {
+            text-align: center;
+            margin: 0 0 12px;
+            font-size: 16px
+        }
+
+        .box table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px
+        }
+
+        .box td,
+        .box th {
+            border: 1px solid #17668e;
+            padding: 7px;
+            text-align: left
+        }
+
+        .check {
+            display: flex;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 13px
+        }
+
+        .check span {
+            color: #2c8b38;
+            font-weight: 900
+        }
+
+        .orange .check span {
+            color: var(--orange)
+        }
+
+        .footer {
+            background: var(--navy);
+            color: #fff;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 16px 42px;
+            gap: 30px;
+            font-weight: 700
+        }
+
+        .footer div {
+            text-align: center
+        }
+
+        .footer span {
+            color: var(--cyan);
+            font-size: 23px;
+            margin-right: 12px
+        }
+
+        .toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            max-width: 500px;
+            background: #fff;
+            border-left: 5px solid var(--red);
+            box-shadow: 0 10px 35px #0003;
+            padding: 14px 16px;
+            border-radius: 9px;
+            display: none;
+            font-size: 13px;
+            z-index: 10
+        }
+
+        .toast.show {
+            display: block
+        }
+
+        .hidden {
+            display: none
+        }
+
+        @media(max-width:1050px) {
+            .hero {
+                grid-template-columns: 1fr
+            }
+
+            .main,
+            .lower {
+                grid-template-columns: 1fr 1fr
+            }
+
+            .filters {
+                grid-template-columns: repeat(3, 1fr)
+            }
+
+            .title {
+                font-size: 18px
+            }
+        }
+
+        @media(max-width:700px) {
+            .topbar {
+                height: auto;
+                padding: 12px
+            }
+
+            .brand {
+                font-size: 25px
+            }
+
+            .title {
+                font-size: 15px
+            }
+
+            .kpis {
+                grid-template-columns: 1fr 1fr;
+                gap: 14px
+            }
+
+            .filters,
+            .main,
+            .lower,
+            .quick {
+                grid-template-columns: 1fr
+            }
+
+            .footer {
+                grid-template-columns: 1fr
+            }
+
+            .panel {
+                border-radius: 18px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="brand">INEGI</div>
+        <div class="title">SEGUIMIENTO REGIONAL DE AUDITORÍAS</div>
+        <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Pulsa Actualizar
+                información</span><br><span id="lastUpdate"></span></div>
+    </header>
+    <section class="hero">
+        <div>
+            <h1>Centro de prevención y mejora continua</h1>
+            <p>Espacio colaborativo para el seguimiento de auditorías, observaciones, recomendaciones y acciones de
+                mejora.</p>
+        </div>
+        <div class="kpis">
+            <div class="kpi">
+                <div class="ico">▣</div>
+                <div><strong id="kAud">0</strong><small>AUDITORÍAS REGISTRADAS</small></div>
+            </div>
+            <div class="kpi">
+                <div class="ico">◎</div>
+                <div><strong id="kRec">0</strong><small>RECOMENDACIONES</small></div>
+            </div>
+            <div class="kpi">
+                <div class="ico">!</div>
+                <div><strong id="kObs">0</strong><small>OBSERVACIONES FINALES</small></div>
+            </div>
+            <div class="kpi">
+                <div class="ico">◉</div>
+                <div><strong id="kUni">0</strong><small>UNIDADES FISCALIZADAS</small></div>
+            </div>
+        </div>
+    </section>
+    <div class="source-note">Origen: <b>siiapo-data.json</b>. El botón vuelve a cargar el archivo sin usar caché.</div>
+    <section class="filters">
+        <div><label>BUSCAR AUDITORÍA, TEMA O UNIDAD</label><input id="q" placeholder="Escribe para filtrar…"></div>
+        <div><label>AÑO</label><select id="fYear">
+                <option value="">Todos</option>
+            </select></div>
+        <div><label>DIRECCIÓN REGIONAL</label><select id="fRegional">
+                <option value="">Todas</option>
+            </select></div>
+        <div><label>UNIDAD FISCALIZADA</label><select id="fUnit">
+                <option value="">Todas</option>
+            </select></div>
+        <div><label>ESTATUS</label><select id="fStatus">
+                <option value="">Todos</option>
+            </select></div><button id="clear" class="btn secondary">Limpiar</button><button id="refreshBtn"
+            class="btn">↻ Actualizar información</button><input id="jsonFile" type="file" class="hidden"
+            accept=".json,application/json">
+    </section>
+    <section class="quick">
+        <div>⌕ Hallazgos recurrentes</div>
+        <div>ⓘ Seguimiento</div>
+        <div>✪ Cumplimiento</div>
+        <div>▦ Calendario</div>
+    </section>
+    <main class="main">
+        <article class="panel">
+            <h2>TOP 5 TEMAS DE AUDITORÍA</h2>
+            <div id="themeBars" class="bars">
+                <div class="empty">Sin datos</div>
+            </div>
+        </article>
+        <article class="panel">
+            <h2>REVISIÓN POR TEMA | RIESGO</h2>
+            <table class="themeTable">
+                <thead>
+                    <tr>
+                        <th>Tema</th>
+                        <th>Nivel</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody id="riskBody">
+                    <tr>
+                        <td colspan="3" class="empty">Sin datos</td>
+                    </tr>
+                </tbody>
+            </table>
+        </article>
+        <article class="panel">
+            <h2>ALERTAS PRIORITARIAS</h2>
+            <div id="alerts" class="alertList">
+                <div class="empty">Sin datos</div>
+            </div>
+        </article>
+    </main>
+    <section class="lower">
+        <article class="box blue">
+            <h3>PRÓXIMOS COMPROMISOS</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Auditoría</th>
+                        <th>Unidad</th>
+                    </tr>
+                </thead>
+                <tbody id="nextBody">
+                    <tr>
+                        <td colspan="3">Sin datos</td>
+                    </tr>
+                </tbody>
+            </table>
+        </article>
+        <article class="box green">
+            <h3>ANTES DE ENVIAR | REVISA</h3>
+            <div class="check"><span>✓</span>Documentación completa y vigente</div>
+            <div class="check"><span>✓</span>Fechas compromiso actualizadas</div>
+            <div class="check"><span>✓</span>Evidencia digital disponible</div>
+            <div class="check"><span>✓</span>Estatus y responsables validados</div>
+        </article>
+        <article class="box orange">
+            <h3>RESUMEN DE ATENCIÓN</h3>
+            <div id="summary">
+                <div class="empty">Sin datos</div>
+            </div>
+        </article>
+    </section>
+    <footer class="footer">
+        <div><span>▤</span>Normatividad aplicable</div>
+        <div><span>▣</span>Formatos y plantillas</div>
+        <div><span>⌂</span>Material de capacitación</div>
+    </footer>
+    <div id="toast" class="toast"></div>
+    <script>'use strict'; const JSON_URL = './siiapo-data.json'; const state = { auditorias: [], regionales: [], observaciones: [], recomendaciones: [] }; const $ = s => document.querySelector(s); const clean = v => v == null ? '' : typeof v === 'object' ? (v.Title || v.lookupValue || v.LookupValue || v.Url || '') : String(v).trim(); const norm = s => clean(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); function field(r, ...ns) { for (const n of ns) { if (r[n] != null) return clean(r[n]); const k = Object.keys(r).find(k => norm(k) === norm(n)); if (k) return clean(r[k]) } return '' } function esc(v) { return clean(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])) } function validate(j) { if (!j || typeof j !== 'object') throw Error('JSON no válido'); for (const k of ['auditorias', 'observaciones', 'recomendaciones', 'regionales']) if (!Array.isArray(j[k])) throw Error('No se encontró el arreglo ' + k); return j } function unique(rows, ...n) { return [...new Set(rows.map(r => field(r, ...n)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')) } function fill(id, vals, label) { $(id).innerHTML = `<option value="">${label}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join('') } function setData(j, source) { j = validate(j); state.auditorias = j.auditorias; state.observaciones = j.observaciones; state.recomendaciones = j.recomendaciones; state.regionales = j.regionales; fill('#fYear', unique(state.auditorias, 'Año'), 'Todos'); fill('#fRegional', unique(state.regionales, 'Dirección Regional'), 'Todas'); fill('#fUnit', unique(state.auditorias, 'Unidad Fiscalizada'), 'Todas'); fill('#fStatus', unique(state.auditorias, 'Estatus General', 'Estatus General '), 'Todos'); $('#statusDot').className = 'dot ok'; $('#statusText').textContent = 'Información actualizada'; $('#lastUpdate').textContent = (j.metadata?.fechaActualizacion || new Date().toLocaleString('es-MX')) + ' · ' + source; render() } function filtered() { const q = norm($('#q').value), y = $('#fYear').value, reg = $('#fRegional').value, u = $('#fUnit').value, s = $('#fStatus').value; return state.auditorias.filter(r => { const un = field(r, 'Unidad Fiscalizada'), dr = state.regionales.find(x => field(x, 'Unidad Fiscalizada') === un), rg = dr ? field(dr, 'Dirección Regional') : ''; return (!q || norm(Object.values(r).map(clean).join(' ')).includes(q)) && (!y || field(r, 'Año') === y) && (!reg || rg === reg) && (!u || un === u) && (!s || field(r, 'Estatus General', 'Estatus General ') === s) }) } function countBy(rows, get) { const m = {}; rows.forEach(r => { const k = get(r) || 'Sin dato'; m[k] = (m[k] || 0) + 1 }); return Object.entries(m).sort((a, b) => b[1] - a[1]) } function dval(v) { const d = new Date(v); return isNaN(d) ? null : d } function risk(n, m) { const p = m ? n / m : 0; return p >= .67 ? 'Alto' : p >= .34 ? 'Medio' : 'Bajo' } function render() { const aud = filtered(), ids = new Set(aud.map(r => field(r, 'ID Auditoría'))), obs = state.observaciones.filter(r => ids.has(field(r, 'ID Auditoría'))), rec = state.recomendaciones.filter(r => ids.has(field(r, 'ID Auditoría'))); $('#kAud').textContent = aud.length.toLocaleString('es-MX'); $('#kObs').textContent = obs.length.toLocaleString('es-MX'); $('#kRec').textContent = rec.length.toLocaleString('es-MX'); $('#kUni').textContent = new Set(aud.map(r => field(r, 'Unidad Fiscalizada')).filter(Boolean)).size.toLocaleString('es-MX'); const themes = countBy(aud, r => field(r, 'Tema')).slice(0, 5), mx = Math.max(1, ...themes.map(x => x[1])); $('#themeBars').innerHTML = themes.length ? themes.map(([k, v]) => `<div class="barRow"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v / mx * 100}%"></div></div><span class="value">${v}</span></div>`).join('') : '<div class="empty">Sin resultados</div>'; const ot = countBy(obs, r => { const a = aud.find(x => field(x, 'ID Auditoría') === field(r, 'ID Auditoría')); return a ? field(a, 'Tema') : 'Sin tema' }).slice(0, 5), om = Math.max(1, ...ot.map(x => x[1])); $('#riskBody').innerHTML = ot.length ? ot.map(([k, v]) => { const z = risk(v, om); return `<tr><td>${esc(k)}</td><td><span class="risk ${z.toLowerCase()}">${z}</span></td><td><b>${v}</b></td></tr>` }).join('') : '<tr><td colspan="3" class="empty">Sin observaciones</td></tr>'; const today = new Date(); today.setHours(0, 0, 0, 0); const overdue = obs.filter(r => { const d = dval(field(r, 'Fecha para implementación')); return d && d < today && !/(atendid|solvent|implementad|concluid)/.test(norm(field(r, 'Estatus Observación'))) }), pending = rec.filter(r => !/(atendid|solvent|implementad|concluid)/.test(norm(field(r, 'Estatus')))), money = obs.filter(r => Number(field(r, 'Monto por aclarar').replace(/[^0-9.-]/g, '')) > 0); const aa = [[overdue.length, 'Observaciones vencidas'], [pending.length, 'Recomendaciones pendientes'], [money.length, 'Observaciones con monto por aclarar']].filter(x => x[0]); $('#alerts').innerHTML = aa.length ? aa.map(x => `<div class="alert"><div class="aicon">!</div><div><b>${x[0]} ${esc(x[1])}</b><br><small>Requiere seguimiento</small></div></div>`).join('') : '<div class="empty">Sin alertas</div>'; const up = [...obs.map(r => ({ d: dval(field(r, 'Fecha para implementación')), i: field(r, 'ID Auditoría'), u: field(r, 'Unidad Fiscalizada') })), ...rec.map(r => ({ d: dval(field(r, 'Fecha compromiso de implementación', 'Fecha compromiso de reimplantación de recomendaciones')), i: field(r, 'ID Auditoría'), u: field(r, 'Unidad Fiscalizada') }))].filter(x => x.d && x.d >= today).sort((a, b) => a.d - b.d).slice(0, 4); $('#nextBody').innerHTML = up.length ? up.map(x => `<tr><td>${x.d.toLocaleDateString('es-MX')}</td><td>${esc(x.i)}</td><td>${esc(x.u)}</td></tr>`).join('') : '<tr><td colspan="3">Sin compromisos próximos</td></tr>'; const st = countBy(rec, r => field(r, 'Estatus')).slice(0, 4); $('#summary').innerHTML = st.length ? st.map(([k, v]) => `<div class="check"><span>!</span><div><b>${v}</b> ${esc(k)}</div></div>`).join('') : '<div class="empty">Sin recomendaciones</div>' } function toast(m) { $('#toast').innerHTML = m; $('#toast').classList.add('show'); setTimeout(() => $('#toast').classList.remove('show'), 15000) } async function update() { const b = $('#refreshBtn'); b.disabled = true; b.textContent = 'Actualizando…'; $('#statusText').textContent = 'Leyendo siiapo-data.json…'; try { const r = await fetch(JSON_URL + '?v=' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw Error(r.status + ' ' + r.statusText); setData(await r.json(), 'siiapo-data.json') } catch (e) { $('#statusDot').className = 'dot bad'; $('#statusText').textContent = 'No se pudo leer el JSON'; toast(`<b>No se pudo abrir siiapo-data.json.</b><br>Coloca el JSON junto al HTML en una carpeta web. Si abriste el HTML desde el equipo, usa el selector manual.<br><button id="manualBtn" class="btn" style="margin-top:8px">Seleccionar JSON</button><br><small>${esc(e.message)}</small>`); setTimeout(() => { const x = $('#manualBtn'); if (x) x.onclick = () => $('#jsonFile').click() }, 0) } finally { b.disabled = false; b.textContent = '↻ Actualizar información' } } $('#refreshBtn').onclick = update; $('#jsonFile').onchange = async e => { try { const f = e.target.files[0]; if (f) setData(JSON.parse(await f.text()), f.name) } catch (err) { toast('<b>El archivo JSON no es válido.</b><br>' + esc(err.message)) } }; $('#clear').onclick = () => { $('#q').value = '';['#fYear', '#fRegional', '#fUnit', '#fStatus'].forEach(x => $(x).value = ''); render() };['#q', '#fYear', '#fRegional', '#fUnit', '#fStatus'].forEach(id => $(id).addEventListener(id === '#q' ? 'input' : 'change', render));</script>
+</body>
+
+</html>
