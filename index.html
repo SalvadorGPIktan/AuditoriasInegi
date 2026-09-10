@@ -622,7 +622,466 @@
         <div><span>⌂</span>Material de capacitación</div>
     </footer>
     <div id="toast" class="toast"></div>
-    <script>'use strict'; const JSON_URL = './siiapo-data.json'; const state = { auditorias: [], regionales: [], observaciones: [], recomendaciones: [] }; const $ = s => document.querySelector(s); const clean = v => v == null ? '' : typeof v === 'object' ? (v.Title || v.lookupValue || v.LookupValue || v.Url || '') : String(v).trim(); const norm = s => clean(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); function field(r, ...ns) { for (const n of ns) { if (r[n] != null) return clean(r[n]); const k = Object.keys(r).find(k => norm(k) === norm(n)); if (k) return clean(r[k]) } return '' } function esc(v) { return clean(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])) } function validate(j) { if (!j || typeof j !== 'object') throw Error('JSON no válido'); for (const k of ['auditorias', 'observaciones', 'recomendaciones', 'regionales']) if (!Array.isArray(j[k])) throw Error('No se encontró el arreglo ' + k); return j } function unique(rows, ...n) { return [...new Set(rows.map(r => field(r, ...n)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')) } function fill(id, vals, label) { $(id).innerHTML = `<option value="">${label}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join('') } function setData(j, source) { j = validate(j); state.auditorias = j.auditorias; state.observaciones = j.observaciones; state.recomendaciones = j.recomendaciones; state.regionales = j.regionales; fill('#fYear', unique(state.auditorias, 'Año'), 'Todos'); fill('#fRegional', unique(state.regionales, 'Dirección Regional'), 'Todas'); fill('#fUnit', unique(state.auditorias, 'Unidad Fiscalizada'), 'Todas'); fill('#fStatus', unique(state.auditorias, 'Estatus General', 'Estatus General '), 'Todos'); $('#statusDot').className = 'dot ok'; $('#statusText').textContent = 'Información actualizada'; $('#lastUpdate').textContent = (j.metadata?.fechaActualizacion || new Date().toLocaleString('es-MX')) + ' · ' + source; render() } function filtered() { const q = norm($('#q').value), y = $('#fYear').value, reg = $('#fRegional').value, u = $('#fUnit').value, s = $('#fStatus').value; return state.auditorias.filter(r => { const un = field(r, 'Unidad Fiscalizada'), dr = state.regionales.find(x => field(x, 'Unidad Fiscalizada') === un), rg = dr ? field(dr, 'Dirección Regional') : ''; return (!q || norm(Object.values(r).map(clean).join(' ')).includes(q)) && (!y || field(r, 'Año') === y) && (!reg || rg === reg) && (!u || un === u) && (!s || field(r, 'Estatus General', 'Estatus General ') === s) }) } function countBy(rows, get) { const m = {}; rows.forEach(r => { const k = get(r) || 'Sin dato'; m[k] = (m[k] || 0) + 1 }); return Object.entries(m).sort((a, b) => b[1] - a[1]) } function dval(v) { const d = new Date(v); return isNaN(d) ? null : d } function risk(n, m) { const p = m ? n / m : 0; return p >= .67 ? 'Alto' : p >= .34 ? 'Medio' : 'Bajo' } function render() { const aud = filtered(), ids = new Set(aud.map(r => field(r, 'ID Auditoría'))), obs = state.observaciones.filter(r => ids.has(field(r, 'ID Auditoría'))), rec = state.recomendaciones.filter(r => ids.has(field(r, 'ID Auditoría'))); $('#kAud').textContent = aud.length.toLocaleString('es-MX'); $('#kObs').textContent = obs.length.toLocaleString('es-MX'); $('#kRec').textContent = rec.length.toLocaleString('es-MX'); $('#kUni').textContent = new Set(aud.map(r => field(r, 'Unidad Fiscalizada')).filter(Boolean)).size.toLocaleString('es-MX'); const themes = countBy(aud, r => field(r, 'Tema')).slice(0, 5), mx = Math.max(1, ...themes.map(x => x[1])); $('#themeBars').innerHTML = themes.length ? themes.map(([k, v]) => `<div class="barRow"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v / mx * 100}%"></div></div><span class="value">${v}</span></div>`).join('') : '<div class="empty">Sin resultados</div>'; const ot = countBy(obs, r => { const a = aud.find(x => field(x, 'ID Auditoría') === field(r, 'ID Auditoría')); return a ? field(a, 'Tema') : 'Sin tema' }).slice(0, 5), om = Math.max(1, ...ot.map(x => x[1])); $('#riskBody').innerHTML = ot.length ? ot.map(([k, v]) => { const z = risk(v, om); return `<tr><td>${esc(k)}</td><td><span class="risk ${z.toLowerCase()}">${z}</span></td><td><b>${v}</b></td></tr>` }).join('') : '<tr><td colspan="3" class="empty">Sin observaciones</td></tr>'; const today = new Date(); today.setHours(0, 0, 0, 0); const overdue = obs.filter(r => { const d = dval(field(r, 'Fecha para implementación')); return d && d < today && !/(atendid|solvent|implementad|concluid)/.test(norm(field(r, 'Estatus Observación'))) }), pending = rec.filter(r => !/(atendid|solvent|implementad|concluid)/.test(norm(field(r, 'Estatus')))), money = obs.filter(r => Number(field(r, 'Monto por aclarar').replace(/[^0-9.-]/g, '')) > 0); const aa = [[overdue.length, 'Observaciones vencidas'], [pending.length, 'Recomendaciones pendientes'], [money.length, 'Observaciones con monto por aclarar']].filter(x => x[0]); $('#alerts').innerHTML = aa.length ? aa.map(x => `<div class="alert"><div class="aicon">!</div><div><b>${x[0]} ${esc(x[1])}</b><br><small>Requiere seguimiento</small></div></div>`).join('') : '<div class="empty">Sin alertas</div>'; const up = [...obs.map(r => ({ d: dval(field(r, 'Fecha para implementación')), i: field(r, 'ID Auditoría'), u: field(r, 'Unidad Fiscalizada') })), ...rec.map(r => ({ d: dval(field(r, 'Fecha compromiso de implementación', 'Fecha compromiso de reimplantación de recomendaciones')), i: field(r, 'ID Auditoría'), u: field(r, 'Unidad Fiscalizada') }))].filter(x => x.d && x.d >= today).sort((a, b) => a.d - b.d).slice(0, 4); $('#nextBody').innerHTML = up.length ? up.map(x => `<tr><td>${x.d.toLocaleDateString('es-MX')}</td><td>${esc(x.i)}</td><td>${esc(x.u)}</td></tr>`).join('') : '<tr><td colspan="3">Sin compromisos próximos</td></tr>'; const st = countBy(rec, r => field(r, 'Estatus')).slice(0, 4); $('#summary').innerHTML = st.length ? st.map(([k, v]) => `<div class="check"><span>!</span><div><b>${v}</b> ${esc(k)}</div></div>`).join('') : '<div class="empty">Sin recomendaciones</div>' } function toast(m) { $('#toast').innerHTML = m; $('#toast').classList.add('show'); setTimeout(() => $('#toast').classList.remove('show'), 15000) } async function update() { const b = $('#refreshBtn'); b.disabled = true; b.textContent = 'Actualizando…'; $('#statusText').textContent = 'Leyendo siiapo-data.json…'; try { const r = await fetch(JSON_URL + '?v=' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw Error(r.status + ' ' + r.statusText); setData(await r.json(), 'siiapo-data.json') } catch (e) { $('#statusDot').className = 'dot bad'; $('#statusText').textContent = 'No se pudo leer el JSON'; toast(`<b>No se pudo abrir siiapo-data.json.</b><br>Coloca el JSON junto al HTML en una carpeta web. Si abriste el HTML desde el equipo, usa el selector manual.<br><button id="manualBtn" class="btn" style="margin-top:8px">Seleccionar JSON</button><br><small>${esc(e.message)}</small>`); setTimeout(() => { const x = $('#manualBtn'); if (x) x.onclick = () => $('#jsonFile').click() }, 0) } finally { b.disabled = false; b.textContent = '↻ Actualizar información' } } $('#refreshBtn').onclick = update; $('#jsonFile').onchange = async e => { try { const f = e.target.files[0]; if (f) setData(JSON.parse(await f.text()), f.name) } catch (err) { toast('<b>El archivo JSON no es válido.</b><br>' + esc(err.message)) } }; $('#clear').onclick = () => { $('#q').value = '';['#fYear', '#fRegional', '#fUnit', '#fStatus'].forEach(x => $(x).value = ''); render() };['#q', '#fYear', '#fRegional', '#fUnit', '#fStatus'].forEach(id => $(id).addEventListener(id === '#q' ? 'input' : 'change', render)); update();</script>
+    <script>
+        'use strict';
+
+        const JSON_URL = './siiapo-data.json';
+        const state = {
+            auditorias: [],
+            regionales: [],
+            observaciones: [],
+            recomendaciones: []
+        };
+
+        const $ = s => document.querySelector(s);
+
+        // Convierte valores simples, lookups de SharePoint y arreglos a texto legible.
+        function clean(v) {
+            if (v == null) return '';
+            if (Array.isArray(v)) return v.map(clean).filter(Boolean).join(', ');
+            if (typeof v === 'object') {
+                return String(
+                    v.Value ??
+                    v.Title ??
+                    v.lookupValue ??
+                    v.LookupValue ??
+                    v.Url ??
+                    v.Name ??
+                    v.DisplayName ??
+                    ''
+                ).trim();
+            }
+            return String(v).trim();
+        }
+
+        const norm = s => clean(s)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+
+        function field(r, ...names) {
+            if (!r || typeof r !== 'object') return '';
+            for (const name of names) {
+                if (r[name] != null) return clean(r[name]);
+                const key = Object.keys(r).find(k => norm(k) === norm(name));
+                if (key) return clean(r[key]);
+            }
+            return '';
+        }
+
+        function esc(v) {
+            return clean(v).replace(/[&<>'"]/g, c => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[c]));
+        }
+
+        function lookupValue(v) {
+            if (v == null) return null;
+            if (typeof v !== 'object' || Array.isArray(v)) return v;
+            return v.Value ?? v.Title ?? v.lookupValue ?? v.LookupValue ?? v.Url ?? v.Name ?? v.DisplayName ?? null;
+        }
+
+        function lookupValues(v) {
+            if (Array.isArray(v)) {
+                const out = v.map(lookupValue).filter(x => x !== null && x !== undefined && x !== '');
+                return out.length ? out : [null];
+            }
+            const x = lookupValue(v);
+            return (x === null || x === undefined || x === '') ? [null] : [x];
+        }
+
+        function isLegacyRow(row, key) {
+            return !!row && typeof row === 'object' && Object.prototype.hasOwnProperty.call(row, key);
+        }
+
+        // SharePoint devuelve varias columnas como arreglos. El JSON V1 las tenía "aplanadas".
+        // Estas funciones recrean exactamente esa forma para que el dashboard siga funcionando.
+        function normalizeAuditorias(rows) {
+            const out = [];
+            for (const r of rows || []) {
+                if (isLegacyRow(r, 'ID Auditoría')) {
+                    out.push(r);
+                    continue;
+                }
+
+                const unidades = lookupValues(r.UnidadFiscalizada0);
+                const claves = lookupValues(r.Clave);
+                const tipos = lookupValues(r.TipoAuditor_x00ed_a);
+
+                for (const unidad of unidades) {
+                    for (const clave of claves) {
+                        for (const tipo of tipos) {
+                            out.push({
+                                'ID Auditoría': lookupValue(r.IDAuditor_x00ed_a),
+                                'Estatus General ': lookupValue(r.EstatusGeneral),
+                                'Unidad Fiscalizada': unidad,
+                                'Fecha Inicio': r.FechaInicio ?? null,
+                                'Fecha Término': r.FechaT_x00e9_rmino ?? null,
+                                'Periodo Auditado': r.PeriodoAuditado ?? null,
+                                'Carpeta Expediente': r.CarpetaExpediente ?? '',
+                                'Tipo Auditoría': tipo,
+                                'Año': r.A_x00f1_o ?? null,
+                                'Clave': clave,
+                                'Tipo de Acto de Fiscalización': lookupValue(r.TipodeActodeFiscalizaci_x00f3_n),
+                                'Descripción': r.Descripci_x00f3_n ?? null,
+                                'Tema': r.Tema ?? null,
+                                'ID': r.ID ?? null,
+                                'Tipo de contenido': lookupValue(r['{ContentType}']),
+                                'Modificado': r.Modified ?? null,
+                                'Creado': r.Created ?? null,
+                                'Datos adjuntos': r['{HasAttachments}'] ? '1' : '0'
+                            });
+                        }
+                    }
+                }
+            }
+            return out;
+        }
+
+        function normalizeObservaciones(rows) {
+            const out = [];
+            for (const r of rows || []) {
+                if (isLegacyRow(r, 'ID Observación')) {
+                    out.push(r);
+                    continue;
+                }
+
+                const unidades = lookupValues(r.UnidadFiscalizada);
+                for (const unidad of unidades) {
+                    out.push({
+                        'ID Auditoría': lookupValue(r.Auditor_x00ed_a),
+                        'ID Observación': r.ClaveObservaci_x00f3_m ?? null,
+                        'Cédula de Observaciones Finales': r.C_x00e9_duladeObservacionesFinal ?? '',
+                        'Oficio No. Cédula Observaciones': r.OficioNo_x002e_ ?? '',
+                        'Unidad Fiscalizada': unidad,
+                        'Fecha de emisión': r.Fechadeemisi_x00f3_n ?? null,
+                        'Fecha para implementación': r.Fechacompromisoparaimplementaci_ ?? null,
+                        'Título': r.Title ?? '',
+                        'Estatus Observación': lookupValue(r.EstatusObservaci_x00f3_n),
+                        'Presunto daño patrimonial': r.Presuntoda_x00f1_opatrimonial ?? null,
+                        'Monto por aclarar': r.Montoporaclarar ?? null,
+                        'Avance': r.Avance ?? null,
+                        'Cédula de Seguimiento': r.C_x00e9_duladeSeguimiento ?? '',
+                        'Fecha Seguimiento': r.FechaSeguimiento ?? null
+                    });
+                }
+            }
+            return out;
+        }
+
+        function normalizeRecomendaciones(rows) {
+            const out = [];
+            for (const r of rows || []) {
+                if (isLegacyRow(r, 'ID Recomendación')) {
+                    out.push(r);
+                    continue;
+                }
+
+                const unidades = lookupValues(r.UnidadAuditada);
+                const areas = lookupValues(r.OData__x00c1_reaResponsabledelaImpleme);
+
+                for (const unidad of unidades) {
+                    for (const area of areas) {
+                        out.push({
+                            'ID Auditoría': lookupValue(r.Auditor_x00ed_a),
+                            'ID Observación': lookupValue(r.Observaci_x00f3_n),
+                            'ID Recomendación': r.Recomendaci_x00f3_n ?? null,
+                            'Estatus': lookupValue(r.Estatus),
+                            'Unidad Fiscalizada': unidad,
+                            'Área Responsable de la Implementación': area,
+                            'Tipo de Recomendación': lookupValue(r.TipodeRecomendaci_x00f3_n),
+                            'Fecha compromiso de implementación': r.Fechacompromisodeimplementaci_x0 ?? null,
+                            'Recomendación': r.Recomendaci_x00f3_n0 ?? '',
+                            'Fecha compromiso de reimplantacion de recomendaciones': r.FECHACOMPROMISODEREIMPLANTACIOND ?? null,
+                            'Clave': lookupValue(r.Tema),
+                            'Tema': r.Tema0 ?? null,
+                            'ID': r.ID ?? null
+                        });
+                    }
+                }
+            }
+            return out;
+        }
+
+        function normalizeRegionales(rows) {
+            return (rows || []).map(r => {
+                if (isLegacyRow(r, 'Dirección Regional')) return r;
+                return {
+                    'Dirección Regional': r.Direcci_x00f3_nRegional ?? '',
+                    'Unidad Fiscalizada': r.Coordinaci_x00f3_nEstatal ?? '',
+                    'Estado': r.DispName ?? null,
+                    'Ámbito': lookupValue(r.OData__x00c1_mbito) ?? '',
+                    'ID': r.ID ?? null
+                };
+            });
+        }
+
+        function normalizeData(input) {
+            if (!input || typeof input !== 'object' || Array.isArray(input)) {
+                throw Error('JSON no válido: se esperaba un objeto principal.');
+            }
+
+            // Compatibilidad por si el flujo conserva el nombre anterior "requerimientos".
+            const regionalRows = Array.isArray(input.regionales)
+                ? input.regionales
+                : (Array.isArray(input.requerimientos) ? input.requerimientos : []);
+
+            if (!Array.isArray(input.auditorias)) throw Error('No se encontró el arreglo auditorias');
+            if (!Array.isArray(input.observaciones)) throw Error('No se encontró el arreglo observaciones');
+            if (!Array.isArray(input.recomendaciones)) throw Error('No se encontró el arreglo recomendaciones');
+            if (!regionalRows.length && !Array.isArray(input.regionales) && !Array.isArray(input.requerimientos)) {
+                throw Error('No se encontró el arreglo regionales');
+            }
+
+            return {
+                auditorias: normalizeAuditorias(input.auditorias),
+                observaciones: normalizeObservaciones(input.observaciones),
+                recomendaciones: normalizeRecomendaciones(input.recomendaciones),
+                regionales: normalizeRegionales(regionalRows),
+                metadata: input.metadata || null
+            };
+        }
+
+        function validate(j) {
+            if (!j || typeof j !== 'object') throw Error('JSON no válido');
+            for (const k of ['auditorias', 'observaciones', 'recomendaciones', 'regionales']) {
+                if (!Array.isArray(j[k])) throw Error('No se encontró el arreglo ' + k);
+            }
+            return j;
+        }
+
+        function unique(rows, ...names) {
+            return [...new Set(rows.map(r => field(r, ...names)).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, 'es'));
+        }
+
+        function fill(id, vals, label) {
+            $(id).innerHTML = `<option value="">${label}</option>` +
+                vals.map(v => `<option>${esc(v)}</option>`).join('');
+        }
+
+        function setData(input, source) {
+            const j = validate(normalizeData(input));
+
+            state.auditorias = j.auditorias;
+            state.observaciones = j.observaciones;
+            state.recomendaciones = j.recomendaciones;
+            state.regionales = j.regionales;
+
+            fill('#fYear', unique(state.auditorias, 'Año'), 'Todos');
+            fill('#fRegional', unique(state.regionales, 'Dirección Regional'), 'Todas');
+            fill('#fUnit', unique(state.auditorias, 'Unidad Fiscalizada'), 'Todas');
+            fill('#fStatus', unique(state.auditorias, 'Estatus General', 'Estatus General '), 'Todos');
+
+            $('#statusDot').className = 'dot ok';
+            $('#statusText').textContent = 'Información actualizada';
+            $('#lastUpdate').textContent =
+                (j.metadata?.fechaActualizacion || new Date().toLocaleString('es-MX')) + ' · ' + source;
+
+            render();
+        }
+
+        function filtered() {
+            const q = norm($('#q').value);
+            const y = $('#fYear').value;
+            const reg = $('#fRegional').value;
+            const u = $('#fUnit').value;
+            const s = $('#fStatus').value;
+
+            return state.auditorias.filter(r => {
+                const un = field(r, 'Unidad Fiscalizada');
+                const dr = state.regionales.find(x => field(x, 'Unidad Fiscalizada') === un);
+                const rg = dr ? field(dr, 'Dirección Regional') : '';
+
+                return (!q || norm(Object.values(r).map(clean).join(' ')).includes(q)) &&
+                    (!y || field(r, 'Año') === y) &&
+                    (!reg || rg === reg) &&
+                    (!u || un === u) &&
+                    (!s || field(r, 'Estatus General', 'Estatus General ') === s);
+            });
+        }
+
+        function countBy(rows, get) {
+            const m = {};
+            rows.forEach(r => {
+                const k = get(r) || 'Sin dato';
+                m[k] = (m[k] || 0) + 1;
+            });
+            return Object.entries(m).sort((a, b) => b[1] - a[1]);
+        }
+
+        // Evita que una fecha YYYY-MM-DD se recorra un día por la zona horaria del navegador.
+        function dval(v) {
+            const s = clean(v);
+            if (!s) return null;
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+            if (m) {
+                const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+                return isNaN(d) ? null : d;
+            }
+            const d = new Date(s);
+            return isNaN(d) ? null : d;
+        }
+
+        function risk(n, m) {
+            const p = m ? n / m : 0;
+            return p >= .67 ? 'Alto' : p >= .34 ? 'Medio' : 'Bajo';
+        }
+
+        function render() {
+            const aud = filtered();
+            const ids = new Set(aud.map(r => field(r, 'ID Auditoría')));
+            const obs = state.observaciones.filter(r => ids.has(field(r, 'ID Auditoría')));
+            const rec = state.recomendaciones.filter(r => ids.has(field(r, 'ID Auditoría')));
+
+            $('#kAud').textContent = aud.length.toLocaleString('es-MX');
+            $('#kObs').textContent = obs.length.toLocaleString('es-MX');
+            $('#kRec').textContent = rec.length.toLocaleString('es-MX');
+            $('#kUni').textContent = new Set(
+                aud.map(r => field(r, 'Unidad Fiscalizada')).filter(Boolean)
+            ).size.toLocaleString('es-MX');
+
+            const themes = countBy(aud, r => field(r, 'Tema')).slice(0, 5);
+            const mx = Math.max(1, ...themes.map(x => x[1]));
+            $('#themeBars').innerHTML = themes.length
+                ? themes.map(([k, v]) => `<div class="barRow"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v / mx * 100}%"></div></div><span class="value">${v}</span></div>`).join('')
+                : '<div class="empty">Sin resultados</div>';
+
+            const ot = countBy(obs, r => {
+                const a = aud.find(x => field(x, 'ID Auditoría') === field(r, 'ID Auditoría'));
+                return a ? field(a, 'Tema') : 'Sin tema';
+            }).slice(0, 5);
+
+            const om = Math.max(1, ...ot.map(x => x[1]));
+            $('#riskBody').innerHTML = ot.length
+                ? ot.map(([k, v]) => {
+                    const z = risk(v, om);
+                    return `<tr><td>${esc(k)}</td><td><span class="risk ${z.toLowerCase()}">${z}</span></td><td><b>${v}</b></td></tr>`;
+                }).join('')
+                : '<tr><td colspan="3" class="empty">Sin observaciones</td></tr>';
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const overdue = obs.filter(r => {
+                const d = dval(field(r, 'Fecha para implementación'));
+                return d && d < today && !/(atendid|solvent|implementad|concluid)/.test(norm(field(r, 'Estatus Observación')));
+            });
+
+            const pending = rec.filter(r =>
+                !/(atendid|solvent|implementad|concluid)/.test(norm(field(r, 'Estatus')))
+            );
+
+            const money = obs.filter(r =>
+                Number(field(r, 'Monto por aclarar').replace(/[^0-9.-]/g, '')) > 0
+            );
+
+            const aa = [
+                [overdue.length, 'Observaciones vencidas'],
+                [pending.length, 'Recomendaciones pendientes'],
+                [money.length, 'Observaciones con monto por aclarar']
+            ].filter(x => x[0]);
+
+            $('#alerts').innerHTML = aa.length
+                ? aa.map(x => `<div class="alert"><div class="aicon">!</div><div><b>${x[0]} ${esc(x[1])}</b><br><small>Requiere seguimiento</small></div></div>`).join('')
+                : '<div class="empty">Sin alertas</div>';
+
+            const up = [
+                ...obs.map(r => ({
+                    d: dval(field(r, 'Fecha para implementación')),
+                    i: field(r, 'ID Auditoría'),
+                    u: field(r, 'Unidad Fiscalizada')
+                })),
+                ...rec.map(r => ({
+                    d: dval(field(
+                        r,
+                        'Fecha compromiso de implementación',
+                        'Fecha compromiso de reimplantación de recomendaciones',
+                        'Fecha compromiso de reimplantacion de recomendaciones'
+                    )),
+                    i: field(r, 'ID Auditoría'),
+                    u: field(r, 'Unidad Fiscalizada')
+                }))
+            ]
+                .filter(x => x.d && x.d >= today)
+                .sort((a, b) => a.d - b.d)
+                .slice(0, 4);
+
+            $('#nextBody').innerHTML = up.length
+                ? up.map(x => `<tr><td>${x.d.toLocaleDateString('es-MX')}</td><td>${esc(x.i)}</td><td>${esc(x.u)}</td></tr>`).join('')
+                : '<tr><td colspan="3">Sin compromisos próximos</td></tr>';
+
+            const st = countBy(rec, r => field(r, 'Estatus')).slice(0, 4);
+            $('#summary').innerHTML = st.length
+                ? st.map(([k, v]) => `<div class="check"><span>!</span><div><b>${v}</b> ${esc(k)}</div></div>`).join('')
+                : '<div class="empty">Sin recomendaciones</div>';
+        }
+
+        function toast(m) {
+            $('#toast').innerHTML = m;
+            $('#toast').classList.add('show');
+            setTimeout(() => $('#toast').classList.remove('show'), 15000);
+        }
+
+        async function update() {
+            const b = $('#refreshBtn');
+            b.disabled = true;
+            b.textContent = 'Actualizando…';
+            $('#statusText').textContent = 'Leyendo siiapo-data.json…';
+
+            try {
+                const r = await fetch(JSON_URL + '?v=' + Date.now(), { cache: 'no-store' });
+                if (!r.ok) throw Error(r.status + ' ' + r.statusText);
+                const json = await r.json();
+                setData(json, 'siiapo-data.json');
+            } catch (e) {
+                $('#statusDot').className = 'dot bad';
+                $('#statusText').textContent = 'No se pudo leer el JSON';
+                toast(
+                    `<b>No se pudo abrir siiapo-data.json.</b><br>` +
+                    `Verifica que Power Automate haya generado un JSON válido y que esté junto al index.html.<br>` +
+                    `<button id="manualBtn" class="btn" style="margin-top:8px">Seleccionar JSON</button><br>` +
+                    `<small>${esc(e.message)}</small>`
+                );
+                setTimeout(() => {
+                    const x = $('#manualBtn');
+                    if (x) x.onclick = () => $('#jsonFile').click();
+                }, 0);
+            } finally {
+                b.disabled = false;
+                b.textContent = '↻ Actualizar información';
+            }
+        }
+
+        $('#refreshBtn').onclick = update;
+
+        $('#jsonFile').onchange = async e => {
+            try {
+                const f = e.target.files[0];
+                if (f) setData(JSON.parse(await f.text()), f.name);
+            } catch (err) {
+                toast('<b>El archivo JSON no es válido.</b><br>' + esc(err.message));
+            }
+        };
+
+        $('#clear').onclick = () => {
+            $('#q').value = '';
+            ['#fYear', '#fRegional', '#fUnit', '#fStatus'].forEach(x => $(x).value = '');
+            render();
+        };
+
+        ['#q', '#fYear', '#fRegional', '#fUnit', '#fStatus'].forEach(id =>
+            $(id).addEventListener(id === '#q' ? 'input' : 'change', render)
+        );
+
+        // Carga automática al abrir GitHub Pages.
+        update();
+    </script>
 </body>
 
 </html>
